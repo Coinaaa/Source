@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Coinaaa
+Comment=Coinaaa P2P Cryptocurrency
+Comment[fr]=Coinaaa, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Coinaaa, eşten eşe kriptografik sanal para birimi
+Exec=coinaaa-qt %u
+Terminal=false
+Type=Application
+Icon=coinaaa128
+MimeType=x-scheme-handler/coinaaa;
+Categories=Office;Finance;

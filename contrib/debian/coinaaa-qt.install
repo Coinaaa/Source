@@ -1,0 +1,6 @@
+coinaaa-qt usr/bin
+share/pixmaps/coinaaa32.xpm usr/share/pixmaps
+share/pixmaps/coinaaa16.xpm usr/share/pixmaps
+share/pixmaps/coinaaa128.png usr/share/pixmaps
+debian/coinaaa-qt.desktop usr/share/applications
+debian/coinaaa-qt.protocol usr/share/kde4/services/
