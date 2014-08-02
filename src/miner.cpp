@@ -34,6 +34,8 @@ int static FormatHashBlocks(void* pbuffer, unsigned int len)
 static const unsigned int pSHA256InitState[8] =
 {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
 
+uint64_t currentFee = 0;
+
 void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 {
     SHA256_CTX ctx;
@@ -213,8 +215,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
             // This is a more accurate fee-per-kilobyte than is used by the client code, because the
             // client code rounds up the size to the nearest 1K. That's good, because it gives an
             // incentive to create smaller transactions.
-			// On Coinaaa, we ignore fees.
-            double dFeePerKb =  0;
+            double dFeePerKb = GetAdjustedTime() < MINER_FEE_HARD_FORK ? 0 : CTransaction::nMinTxFee;
 
             if (porphan)
             {
@@ -322,12 +323,14 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
-        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
+        UpdateTime(*pblock, pindexPrev);
+
+        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees, pblock->nTime);
+	currentFee = nFees;
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-        UpdateTime(*pblock, pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
@@ -634,6 +637,9 @@ void static CoinaaaMiner(CWallet *pwallet)
 
             // Update nTime every few seconds
             UpdateTime(*pblock, pindexPrev);
+
+	    pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, currentFee, pblock->nTime);
+
             nBlockTime = ByteReverse(pblock->nTime);
             if (TestNet())
             {

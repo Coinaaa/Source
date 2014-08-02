@@ -50,9 +50,9 @@ bool fTxIndex = false;
 unsigned int nCoinCacheSize = 5000;
 
 /** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */
-int64_t CTransaction::nMinTxFee = 0;  // Override with -mintxfee
+int64_t CTransaction::nMinTxFee = 1000;  // Override with -mintxfee
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying and mining) */
-int64_t CTransaction::nMinRelayTxFee = 0;
+int64_t CTransaction::nMinRelayTxFee = 1000;
 
 static CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
 
@@ -771,34 +771,14 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state)
     return true;
 }
 
-int64_t GetMinFee(const CTransaction& tx, unsigned int nBytes, bool fAllowFree, enum GetMinFee_mode mode)
-{
+int64_t GetMinFee(const CTransaction& tx, unsigned int nBytes, enum GetMinFee_mode mode, bool free) {
+    if (free)
+	return 0;
+
     // Base fee is either nMinTxFee or nMinRelayTxFee
     int64_t nBaseFee = (mode == GMF_RELAY) ? tx.nMinRelayTxFee : tx.nMinTxFee;
 
     int64_t nMinFee = (1 + (int64_t)nBytes / 1000) * nBaseFee;
-
-    if (fAllowFree)
-    {
-        // There is a free transaction area in blocks created by most miners,
-        // * If we are relaying we allow transactions up to DEFAULT_BLOCK_PRIORITY_SIZE - 1000
-        //   to be considered to fall into this category. We don't want to encourage sending
-        //   multiple transactions instead of one big transaction to avoid fees.
-        // * If we are creating a transaction we allow transactions up to 1,000 bytes
-        //   to be considered safe and assume they can likely make it into this section.
-        if (nBytes < (mode == GMF_SEND ? 1000 : (DEFAULT_BLOCK_PRIORITY_SIZE - 1000)))
-            nMinFee = 0;
-    }
-
-    // This code can be removed after enough miners have upgraded to version 0.9.
-    // Until then, be safe when sending and require a fee if any output
-    // is less than CENT:
-    if (nMinFee < nBaseFee && mode == GMF_SEND)
-    {
-        BOOST_FOREACH(const CTxOut& txout, tx.vout)
-            if (txout.nValue < CENT)
-                nMinFee = nBaseFee;
-    }
 
     if (!MoneyRange(nMinFee))
         nMinFee = MAX_MONEY;
@@ -899,7 +879,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
         unsigned int nSize = entry.GetTxSize();
 
         // Don't accept it if it can't get into a block
-        int64_t txMinFee = GetMinFee(tx, nSize, true, GMF_RELAY);
+        int64_t txMinFee = GetMinFee(tx, nSize, GMF_RELAY, GetAdjustedTime() < MINER_FEE_HARD_FORK);
         if (fLimitFree && nFees < txMinFee)
             return state.DoS(0, error("AcceptToMemoryPool : not enough fees %s, %d < %d",
                                       hash.ToString(), nFees, txMinFee),
@@ -1169,9 +1149,12 @@ void static PruneOrphanBlocks()
     mapOrphanBlocks.erase(hash);
 }
 
-int64_t GetBlockValue(int nHeight, int64_t nFees) {
-	// Coinaaa has a 100% premine and no block fees.
-    return nHeight == 1 ? MAX_MONEY : 0;
+int64_t GetBlockValue(int nHeight, int64_t nFees, unsigned int nTime) {
+	// Before MINER_FEE_HARD_FORK Coinaaa had a 100% premine and no block fees.
+	// Afterwards, all fees are collected
+	if (nTime < MINER_FEE_HARD_FORK)
+		return nHeight == 1 ? MAX_MONEY : 0;
+	return nFees;
 }
 
 static const int64_t nTargetSpacing = 284; // 4min 44sec
@@ -1794,10 +1777,10 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     if (fBenchmark)
         LogPrintf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)block.vtx.size(), 0.001 * nTime, 0.001 * nTime / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
 
-    if (block.vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees))
+    if (block.vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees, pindex->nTime))
         return state.DoS(100,
                          error("ConnectBlock() : coinbase pays too much (actual=%d vs limit=%d)",
-                               block.vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees)),
+                               block.vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees, pindex->nTime)),
                                REJECT_INVALID, "bad-cb-amount");
 
     if (!control.Wait())

@@ -16,7 +16,7 @@
 using namespace std;
 
 // Settings
-int64_t nTransactionFee = 0;
+int64_t nTransactionFee = 1000;
 bool bSpendZeroConfChange = true;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1265,7 +1265,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
                     dPriority += (double)nCredit * (pcoin.first->GetDepthInMainChain()+1);
                 }
 
-                int64_t nChange = nValueIn - nValue;
+                int64_t nChange = nValueIn - nValue - nFeeRet;
 
                 if (nChange > 0) {
 
@@ -1327,6 +1327,16 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend,
                     return false;
                 }
                 dPriority = wtxNew.ComputePriority(dPriority, nBytes);
+		
+		// Reintroduce fees into Coinaaa
+		
+		// Check that enough fee is included
+                int64_t nPayFee = nTransactionFee * (1 + (int64_t)nBytes / 1000);
+                int64_t nMinFee = GetMinFee(wtxNew, nBytes, GMF_SEND, false); // Start paying fees early to avoid unconfirmed transactions
+                if (nFeeRet < max(nPayFee, nMinFee)) {
+                    nFeeRet = max(nPayFee, nMinFee);
+                    continue;
+                } 
 
                 wtxNew.fTimeReceivedIsTxTime = true;
 

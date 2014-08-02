@@ -1,4 +1,4 @@
-Coinaaa 0.9.0rc1 BETA
+Coinaaa 0.9.2
 
 Copyright (c) 2009-2014 Bitcoin Core Developers
 

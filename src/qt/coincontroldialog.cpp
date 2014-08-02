@@ -526,7 +526,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         int64_t nFee = nTransactionFee * (1 + (int64_t)nBytes / 1000);
 
         // Min Fee
-        int64_t nMinFee = GetMinFee(txDummy, nBytes, AllowFree(dPriority), GMF_SEND);
+        int64_t nMinFee = GetMinFee(txDummy, nBytes, GMF_SEND, false); // Start paying fees early to avoid unconfirmed transactions that do not confirm before fork
 
         nPayFee = max(nFee, nMinFee);
 

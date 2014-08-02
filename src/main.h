@@ -67,6 +67,9 @@ static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 128;
 /** Timeout in seconds before considering a block download peer unresponsive. */
 static const unsigned int BLOCK_DOWNLOAD_TIMEOUT = 60;
 
+// Coinaaa, fee hard fork takes place at Tue 5 Aug 20:00:00 UTC 2014
+static const unsigned int MINER_FEE_HARD_FORK = 1407268800;
+
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
 #else
@@ -170,7 +173,7 @@ std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState &state);
-int64_t GetBlockValue(int nHeight, int64_t nFees);
+int64_t GetBlockValue(int nHeight, int64_t nFees, unsigned int nTime);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
 
 void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev);
@@ -263,7 +266,7 @@ enum GetMinFee_mode
     GMF_SEND,
 };
 
-int64_t GetMinFee(const CTransaction& tx, unsigned int nBytes, bool fAllowFree, enum GetMinFee_mode mode);
+int64_t GetMinFee(const CTransaction& tx, unsigned int nBytes, enum GetMinFee_mode mode, bool free);
 
 //
 // Check transaction inputs, and make sure any
